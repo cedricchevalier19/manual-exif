@@ -19,6 +19,12 @@ fn to_ev(input: i32) -> f64 {
     input as f64 / 32.0 + 5.0
 }
 
+fn round_ev(input: f64) -> f64 {
+    let out = ((input * 3.0).round()) / 3.;
+    println!("out = {}", out);
+    out
+}
+
 impl Exposure {
     fn from_exif(path: &Path) -> Option<Self> {
         if let Ok(meta) = rexiv2::Metadata::new_from_path(path) {
@@ -54,14 +60,18 @@ impl Exposure {
             (
                 if self.ev.is_some() {
                     Some(2f64.powf(
-                        (self.ev.unwrap() + self.speed.log2() + (self.iso / 100.).log2()) * 0.5,
+                        0.5 * round_ev(
+                            self.ev.unwrap() + self.speed.log2() + (self.iso / 100.).log2(),
+                        ),
                     ))
                 } else {
                     None
                 },
                 if self.ev.is_some() && self.tv.is_some() {
                     Some(2f64.powf(
-                        0.5 * (self.ev.unwrap() - self.tv.unwrap() + (self.iso / 100.).log2()),
+                        0.5 * round_ev(
+                            self.ev.unwrap() - self.tv.unwrap() + (self.iso / 100.).log2(),
+                        ),
                     ))
                 } else {
                     None
@@ -89,12 +99,14 @@ fn main() {
                 continue;
             }
             if let Some(exposure) = Exposure::from_exif(&path) {
-                println!(
-                    "{:?} {:?} so {:?}",
-                    path,
-                    exposure,
-                    exposure.compute_aperture(),
-                );
+                if exposure.aperture.unwrap_or(0.0) > 1.0 && !exposure.flash {
+                    println!(
+                        "{:?} {:?} so {:?}",
+                        path,
+                        exposure,
+                        exposure.compute_aperture(),
+                    );
+                }
             } else {
                 println!("Skipping {:?}", path);
             }
